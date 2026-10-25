@@ -1,0 +1,1 @@
+{"root":["./src/main.ts","./src/composables/useAuth.ts","./src/composables/useTheme.ts","./src/composables/useToast.ts","./src/utils/csv.ts","./src/utils/db.ts","./src/App.vue","./src/components/CasosManager.vue","./src/components/LoginView.vue","./src/components/ui/ConfirmModal.vue"],"version":"6.0.3"}

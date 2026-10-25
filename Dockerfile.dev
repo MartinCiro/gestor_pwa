@@ -1,0 +1,17 @@
+# Dockerfile.dev
+FROM node:22-alpine
+
+WORKDIR /app
+
+# 1. Copiamos solo los archivos de dependencias primero (mejor caché de Docker)
+COPY package*.json ./
+RUN npm ci
+
+# 2. Copiamos el resto del código fuente
+COPY . .
+
+# 3. Exponemos el puerto de Vite
+EXPOSE 5173
+
+# 4. Comando por defecto (docker-compose lo sobreescribe, pero es buena práctica)
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

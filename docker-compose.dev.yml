@@ -1,0 +1,23 @@
+# docker-compose.dev.yml
+services:
+  gestor:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: gestor
+    user: "${UID}:${GID}" 
+    ports:
+      - "4321:5173" 
+    volumes:
+      - .:/app:z 
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+    networks:
+      - proxy_net
+
+networks:
+  proxy_net:
+    external: true
