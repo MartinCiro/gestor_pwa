@@ -8,13 +8,14 @@ import { useCSV } from '@composables/useCSV';
 import { parseCSV } from '@utils/csv';             
 import { db } from '@utils/db';
 import ConfirmModal from '@ui/ConfirmModal.vue';
+import Spinner from '@ui/Spinner.vue'; 
 
 interface Caso { id?: number; tipificacion: string; descripcion: string; fecha: string; }
 
 const { user, logout } = useAuth();
 const { toasts, push } = useToast();
 const { isDark, toggleTheme } = useTheme();
-const { exportData } = useCSV();                    
+const { isProcessing, exportData } = useCSV();                    
 
 const DEFAULT_TEMPLATE = "Cliente NOM_CLI, doc, se contacta por # para cancelar movil debido a , se ofrece , cliente no acepta, cod: , radicado: ";
 const getEmptyForm = () => ({ tipificacion: '', descripcion: DEFAULT_TEMPLATE });
@@ -288,12 +289,25 @@ const pegarDescripcion = async () => {
         
         <!-- Grupo de Botones -->
         <div class="flex items-center gap-3">
-          <button @click="openFilePicker" class="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-200 transition-colors" title="Importar">
-            <Upload class="w-4 h-4" />
+          
+          <!-- BOTÓN IMPORTAR con spinner -->
+          <button 
+            @click="openFilePicker" 
+            :disabled="isProcessing"
+            class="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium text-slate-700 dark:text-slate-200 transition-colors" title="Importar"
+          >
+            <Spinner v-if="isProcessing" size="sm" />
+            <Upload v-else class="w-4 h-4" />
           </button>
           
-          <button @click="exportarCSV" :disabled="casos.length === 0" class="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg text-sm font-semibold text-white transition-colors" title="Exportar">
-            <Download class="w-4 h-4" />
+          <!-- BOTÓN EXPORTAR con spinner -->
+          <button 
+            @click="exportarCSV" 
+            :disabled="casos.length === 0 || isProcessing"
+            class="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg text-sm font-semibold text-white transition-colors" title="Exportar"
+          >
+            <Spinner v-if="isProcessing" size="sm" />
+            <Download v-else class="w-4 h-4" />
           </button>
           
           <input ref="fileInput" type="file" accept=".csv" class="hidden" @change="handleFile" />

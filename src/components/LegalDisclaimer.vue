@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { ShieldAlert, X } from 'lucide-vue-next';
+import { ShieldAlert } from 'lucide-vue-next';
 
 const emit = defineEmits<{ (e: 'accepted'): void }>();
 const isVisible = ref(false);
