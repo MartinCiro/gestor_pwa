@@ -4,7 +4,8 @@ import { Sun, Moon, Upload, Download, Database, Copy, ClipboardPaste } from 'luc
 import { useAuth } from '@composables/useAuth';
 import { useToast } from '@composables/useToast';
 import { useTheme } from '@composables/useTheme';
-import { parseCSV, toCSV, downloadFile } from '@utils/csv';
+import { useCSV } from '@composables/useCSV';       
+import { parseCSV } from '@utils/csv';             
 import { db } from '@utils/db';
 import ConfirmModal from '@ui/ConfirmModal.vue';
 
@@ -13,6 +14,7 @@ interface Caso { id?: number; tipificacion: string; descripcion: string; fecha: 
 const { user, logout } = useAuth();
 const { toasts, push } = useToast();
 const { isDark, toggleTheme } = useTheme();
+const { exportData } = useCSV();                    
 
 const DEFAULT_TEMPLATE = "Cliente NOM_CLI, doc, se contacta por # para cancelar movil debido a , se ofrece , cliente no acepta, cod: , radicado: ";
 const getEmptyForm = () => ({ tipificacion: '', descripcion: DEFAULT_TEMPLATE });
@@ -89,25 +91,38 @@ const confirmarEliminacion = async () => {
 const resetForm = () => { modoEdicion.value = false; casoEditando.value = null; formData.value = getEmptyForm(); };
 
 const openFilePicker = () => fileInput.value?.click();
+
 const handleFile = async (event: Event) => {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
   if (!file) return;
+  
   try {
     const text = await file.text();
     const { rows, mapped } = parseCSV(text);
     if (rows.length === 0) throw new Error('El archivo no contiene filas.');
-    const items: any[] = []; let skipped = 0;
+    
+    const items: any[] = []; 
+    let skipped = 0;
+    
     for (const row of rows) {
       const desc = mapped.descripcion ? row[mapped.descripcion] : '';
       const tip = mapped.tipificacion ? row[mapped.tipificacion] : 'Importado';
       if (!desc.trim()) { skipped++; continue; }
-      items.push({ tipificacion: tip, descripcion: desc, fecha: row[mapped.fecha || ''] || new Date().toLocaleString() });
+      items.push({ 
+        tipificacion: tip, 
+        descripcion: desc, 
+        fecha: row[mapped.fecha || ''] || new Date().toLocaleString() 
+      });
     }
+    
     if (items.length === 0) throw new Error('No se encontraron descripciones válidas.');
     pendingImport.value = { items, skipped };
-  } catch (err) { push(err instanceof Error ? err.message : 'Error al leer CSV', 'error'); }
-  finally { input.value = ''; }
+  } catch (err) { 
+    push(err instanceof Error ? err.message : 'Error al leer CSV', 'error'); 
+  } finally { 
+    input.value = ''; 
+  }
 };
 
 const confirmImport = async (mode: 'append' | 'replace') => {
@@ -116,17 +131,20 @@ const confirmImport = async (mode: 'append' | 'replace') => {
     if (mode === 'replace') await db.clear();
     await db.bulkAdd(pendingImport.value.items);
     await refreshData();
-    push(`${pendingImport.value.items.length} registros importados`);
+    push(`${pendingImport.value.items.length} registros importados`, 'success');
     pendingImport.value = null;
-  } catch { push('Error al importar', 'error'); }
+  } catch { 
+    push('Error al importar', 'error'); 
+  }
 };
 
-const exportCSV = () => {
+const exportarCSV = () => {
   const data = busqueda.value ? casosFiltrados.value : casos.value;
-  if (data.length === 0) return push('No hay datos para exportar', 'error');
-  const csv = toCSV(data.map(c => ({ tipificacion: c.tipificacion, descripcion: c.descripcion, fecha: c.fecha })), ['tipificacion', 'descripcion', 'fecha']);
-  downloadFile(csv, `tipificaciones_${Date.now()}.csv`);
-  push('Datos exportados');
+  exportData(
+    data,
+    ['tipificacion', 'descripcion', 'fecha'],
+    `tipificaciones_${Date.now()}.csv`
+  );
 };
 
 const casosFiltrados = computed(() => {
@@ -144,7 +162,6 @@ const cambiarPagina = (p: number) => { if (p >= 1 && p <= totalPaginas.value) pa
 const copiar = async (caso: Caso) => {
   const textoACopiar = `${caso.tipificacion ? `[${caso.tipificacion}]\n` : ''}${caso.descripcion}`;
   
-  // Método 1: API moderna (funciona en HTTPS/localhost)
   if (navigator.clipboard && window.isSecureContext) {
     try {
       await navigator.clipboard.writeText(textoACopiar);
@@ -155,12 +172,9 @@ const copiar = async (caso: Caso) => {
     }
   }
   
-  // Método 2: Fallback clásico (funciona en file://)
   try {
     const textArea = document.createElement('textarea');
     textArea.value = textoACopiar;
-    
-    // Estilos para que el textarea sea invisible
     textArea.style.position = 'fixed';
     textArea.style.top = '0';
     textArea.style.left = '0';
@@ -191,7 +205,6 @@ const copiar = async (caso: Caso) => {
   }
 };
 
-// Copiar el contenido del textarea
 const copiarDescripcion = async () => {
   const textoACopiar = formData.value.descripcion;
   if (!textoACopiar.trim()) {
@@ -209,7 +222,6 @@ const copiarDescripcion = async () => {
     }
   }
   
-  // Fallback clásico
   try {
     const textArea = document.createElement('textarea');
     textArea.value = textoACopiar;
@@ -239,7 +251,6 @@ const copiarDescripcion = async () => {
   }
 };
 
-// Pegar desde el portapapeles al textarea
 const pegarDescripcion = async () => {
   if (navigator.clipboard && window.isSecureContext) {
     try {
@@ -252,8 +263,6 @@ const pegarDescripcion = async () => {
       console.warn('Clipboard read falló, usando fallback...', err);
     }
   }
-  
-  // Fallback: sugerir al usuario que use Ctrl+V
   push('Usa Ctrl+V (o Cmd+V) para pegar', 'info');
 };
 </script>
@@ -279,14 +288,12 @@ const pegarDescripcion = async () => {
         
         <!-- Grupo de Botones -->
         <div class="flex items-center gap-3">
-          <button @click="openFilePicker" class="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-200 transition-colors">
+          <button @click="openFilePicker" class="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-200 transition-colors" title="Importar">
             <Upload class="w-4 h-4" />
-            <span>Importar CSV</span>
           </button>
           
-          <button @click="exportCSV" :disabled="casos.length === 0" class="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg text-sm font-semibold text-white transition-colors">
+          <button @click="exportarCSV" :disabled="casos.length === 0" class="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg text-sm font-semibold text-white transition-colors" title="Exportar">
             <Download class="w-4 h-4" />
-            <span>Exportar Todo</span>
           </button>
           
           <input ref="fileInput" type="file" accept=".csv" class="hidden" @change="handleFile" />

@@ -15,9 +15,3 @@ services:
       - NODE_ENV=development
       - CHOKIDAR_USEPOLLING=true
     command: ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
-    networks:
-      - proxy_net
-
-networks:
-  proxy_net:
-    external: true
